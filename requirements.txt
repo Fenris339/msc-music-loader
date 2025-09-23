@@ -1,0 +1,4 @@
+requests~=2.32.5
+tqdm~=4.67.1
+mutagen~=1.47.0
+pillow~=11.3.0
