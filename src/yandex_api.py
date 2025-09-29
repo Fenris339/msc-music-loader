@@ -13,6 +13,9 @@ import requests
 import io
 
 
+if not Path('../logs').exists():
+    Path('../logs').mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     filename=f'../logs/{__name__}.log',
@@ -21,14 +24,14 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class DownloadFromType(Enum):
-    TRACK = 'track'
-    PLAYLIST = 'плейлиста'
-    ALBUM = 'альбома'
-    LIKED_TRACKS = 'любимых треков'
+    TRACK = ['трек', 'track']
+    PLAYLIST = ['плейлиста', 'playlists']
+    ALBUM = ['альбом', 'album']
+    LIKED_TRACKS = ['любимых треков', '']
 
 
 class YandexMusicLoader:
@@ -52,30 +55,61 @@ class YandexMusicLoader:
             if not self.music_download_path.exists():
                 self.music_download_path.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(f"При инициалиции пути для загрузки музыки произошла ошибка: {e}")
+            print(f"При инициализации пути для загрузки музыки произошла ошибка: {e}")
             return
         self.music_quality = config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_MUSIC_QUALITY)
         self.download_cover = config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_DOWNLOAD_COVER)
 
-#TODO: сделать загрузке по сыылке (с автоопеределением)
-    def music_download(self, download_type: DownloadFromType, search_value: str = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
+    # пример ссылок
+    # https://music.yandex.ru/album/488052/track/178529
+    # https://music.yandex.ru/album/488052
+    # https://music.yandex.ru/playlists/55dad88e-08d2-00ae-91c5-0a12db0aee5d
+    def music_download(self, search_value: str, specify_download_type: DownloadFromType = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
         if not search_value:
             print("Не указано значение для поиска трека/альбома/плейлиста/по названию")
-            return
+            return None
 
+        if not specify_download_type:
+            striped_url = search_value.rsplit('/')
+            if DownloadFromType.TRACK.value[1] in striped_url:
+                id_index = striped_url.index(DownloadFromType.TRACK.value[1]) + 1
+                track_id = striped_url[id_index]
+                return self.download_track(int(track_id))
+            elif DownloadFromType.ALBUM.value[1] in striped_url:
+                id_index = striped_url.index(DownloadFromType.ALBUM.value[1]) + 1
+                album_id = striped_url[id_index]
+                return self.download_album_tracks(int(album_id), limit, position_from, position_to)
+            elif DownloadFromType.PLAYLIST.value[1] in striped_url:
+                id_index = striped_url.index(DownloadFromType.PLAYLIST.value[1]) + 1
+                playlist_uuid = striped_url[id_index]
+                return self.download_playlist_tracks(playlist_uuid, limit, position_from, position_to)
+            else:
+                return None
+        elif specify_download_type == DownloadFromType.LIKED_TRACKS:
+            return self.download_from_liked_tracks()
+        else:
+            return None
+
+
+#TODO: сделать загрузке по сыылке (с автоопеределением)
+    def music_download_old(self, download_type: DownloadFromType, search_value: str = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
+        if not search_value:
+            print("Не указано значение для поиска трека/альбома/плейлиста/по названию")
         match download_type:
             case DownloadFromType.TRACK:
                 if not search_value.isdigit():
-                    return print("В id трека присутсвуют запрещённые символы")
+                    return print("В id трека присутствуют запрещённые символы")
                 return self.download_track(int(search_value))
             case DownloadFromType.PLAYLIST:
                 return self.download_playlist_tracks(search_value, limit, position_from, position_to)
             case DownloadFromType.ALBUM:
                 if not search_value.isdigit():
-                    return print("В id альбома присутсвуют запрещённые символы")
+                    return print("В id альбома присутствуют запрещённые символы")
                 return self.download_album_tracks(int(search_value), limit, position_from, position_to)
             case DownloadFromType.LIKED_TRACKS:
                 return self.download_album_tracks(limit, position_from, position_to)
+        return None
+
 
     def download_track(self, track_id: int) -> None:
         try:
@@ -88,10 +122,15 @@ class YandexMusicLoader:
             return
 
         artists = ", ".join(artist.name for artist in track.artists)
+        main_artist = track.artists[0].name
+        album = track.albums[0].title if track.albums else "Неизвестный альбом"
         filename = f"{track.title} - {artists}.mp3"
         filename = self._make_correct_file_name(filename)
 
-        file_path = self.music_download_path / filename
+        path_to_save_track = self.music_download_path / main_artist / album
+        if not path_to_save_track.exists():
+            path_to_save_track.mkdir(parents=True, exist_ok=True)
+        file_path = path_to_save_track / filename
 
         if Path(file_path).exists():
             logger.info(f"{filename} уже загружен.")
@@ -119,12 +158,12 @@ class YandexMusicLoader:
 
 
     def download_tracks(self, tracks: List[TrackShort], downloaded_from: DownloadFromType, pack_name: str = "") -> None:
-        logger.info(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value} - {pack_name}")
-        print(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value} - {pack_name}")
+        logger.info(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} - {pack_name}")
+        print(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} - {pack_name}")
 
         for track in tqdm(
                 tracks,
-                desc=f"Загрузка {downloaded_from.value} - {downloaded_from.value}",
+                desc=f"Загрузка {downloaded_from.value[0]} - {downloaded_from.value[0]}",
                 unit="Трек",
                 unit_scale=True,
                 ncols=100,
@@ -233,7 +272,8 @@ class YandexMusicLoader:
         except Exception as e:
             print(f"Ошибка при добавлении метаданных: {e}")
 
-
+    #TODO: Удалять и директории
+    #TODO: При удалении определённого трека проверять наличие других файлов, если их нет то удалять и саму директорию
     def delete_downloaded_music(self, track_name_to_delete: str = "") -> None:
         search_file_to_delete = True if track_name_to_delete else False
         searched_file_is_deleted = False

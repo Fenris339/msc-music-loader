@@ -1,4 +1,3 @@
-import os
 import sys
 
 from settings import *
@@ -34,7 +33,7 @@ class MusicLoader:
                 case 4:
                     self.yandex_music_loader.delete_downloaded_music()
                 case 0:
-                    break
+                    return "process ended by user"
                 case _:
                     print("Неверный выбор! Попробуйте снова.")
 
@@ -43,27 +42,49 @@ class MusicLoader:
         while True:
             self._clear_console()
             print(f"\n{'-' * 10}ЗАГРУЗКА ТРЕКОВ{'-' * 10}")
-            print("1. Загрузить отдельный трек")
-            print("2. Загрузить треки из плейслиста")
-            print("3. Загрузить треки из альбома")
+            print("1. Загрузить трек/альбом/плейлист")
+            print("2. Загрузить треки из избранного")
             print("0. Назад")
 
             choice = int(input("\nВыберите пункт: "))
 
             match choice:
                 case 1:
-                    track_id = input("Введите id трека: ")
-                    self.yandex_music_loader.music_download(DownloadFromType.TRACK, track_id)
+                    track_id = input("Введите ссылку на трек/альбом/плейлист: ")
+                    self.yandex_music_loader.music_download(track_id)
                 case 2:
-                    playlist_uuid = input("Введите uuid плейлиста: ")
-                    self.yandex_music_loader.music_download(DownloadFromType.PLAYLIST, playlist_uuid)
-                case 3:
-                    album_id = input("Введите id альбома: ")
-                    self.yandex_music_loader.music_download(DownloadFromType.ALBUM, album_id)
+                    pass
                 case 0:
                     self.main_menu()
                 case _:
                     print("Неверный выбор! Попробуйте снова.")
+
+
+    # def download_menu_old(self):
+    #     while True:
+    #         self._clear_console()
+    #         print(f"\n{'-' * 10}ЗАГРУЗКА ТРЕКОВ{'-' * 10}")
+    #         print("1. Загрузить отдельный трек")
+    #         print("2. Загрузить треки из плейслиста")
+    #         print("3. Загрузить треки из альбома")
+    #         print("0. Назад")
+    #
+    #         choice = int(input("\nВыберите пункт: "))
+    #
+    #         match choice:
+    #             case 1:
+    #                 track_id = input("Введите id трека: ")
+    #                 self.yandex_music_loader.music_download(track_id)
+    #             case 2:
+    #                 playlist_uuid = input("Введите uuid плейлиста: ")
+    #                 self.yandex_music_loader.music_download(playlist_uuid)
+    #             case 3:
+    #                 album_id = input("Введите id альбома: ")
+    #                 self.yandex_music_loader.music_download(album_id)
+    #             case 0:
+    #                 self.main_menu()
+    #             case _:
+    #                 print("Неверный выбор! Попробуйте снова.")
 
 
     def import_music_msc_menu(self):
@@ -75,8 +96,7 @@ class MusicLoader:
 
 
     def _clear_console(self):
-        return
-        os.system('cls' if os.name == 'nt' else 'clear')
+        pass
 
 # def main():
 #     config_manager = ConfigManager()
