@@ -1,4 +1,3 @@
-import shutil
 from enum import Enum
 from typing import List
 from yandex_music import Client, TrackShort
