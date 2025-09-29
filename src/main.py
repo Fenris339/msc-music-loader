@@ -31,7 +31,7 @@ class MusicLoader:
                 case 3:
                     self.edit_settings_menu()
                 case 4:
-                    self.yandex_music_loader.delete_downloaded_music()
+                    self.clear_menu()
                 case 0:
                     return "process ended by user"
                 case _:
@@ -60,31 +60,26 @@ class MusicLoader:
                     print("Неверный выбор! Попробуйте снова.")
 
 
-    # def download_menu_old(self):
-    #     while True:
-    #         self._clear_console()
-    #         print(f"\n{'-' * 10}ЗАГРУЗКА ТРЕКОВ{'-' * 10}")
-    #         print("1. Загрузить отдельный трек")
-    #         print("2. Загрузить треки из плейслиста")
-    #         print("3. Загрузить треки из альбома")
-    #         print("0. Назад")
-    #
-    #         choice = int(input("\nВыберите пункт: "))
-    #
-    #         match choice:
-    #             case 1:
-    #                 track_id = input("Введите id трека: ")
-    #                 self.yandex_music_loader.music_download(track_id)
-    #             case 2:
-    #                 playlist_uuid = input("Введите uuid плейлиста: ")
-    #                 self.yandex_music_loader.music_download(playlist_uuid)
-    #             case 3:
-    #                 album_id = input("Введите id альбома: ")
-    #                 self.yandex_music_loader.music_download(album_id)
-    #             case 0:
-    #                 self.main_menu()
-    #             case _:
-    #                 print("Неверный выбор! Попробуйте снова.")
+    def clear_menu(self):
+        while True:
+            self._clear_console()
+            print(f"\n{'-' * 10}ОТЧИСТКА ДИРЕКТОРИИ ЗАГРУЗКИ{'-' * 10}")
+            print("1. Найти у далить трек по названию трека")
+            print("2. Отчистить директорию полностью")
+            print("0. Назад")
+
+            choice = int(input("\nВыберите пункт: "))
+
+            match choice:
+                case 1:
+                    track_name = input("Введите название трека: ")
+                    self.yandex_music_loader.delete_downloaded_music(track_name)
+                case 2:
+                    self.yandex_music_loader.delete_downloaded_music()
+                case 0:
+                    self.main_menu()
+                case _:
+                    print("Неверный выбор! Попробуйте снова.")
 
 
     def import_music_msc_menu(self):

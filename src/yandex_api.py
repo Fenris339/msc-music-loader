@@ -1,3 +1,4 @@
+import shutil
 from enum import Enum
 from typing import List
 from yandex_music import Client, TrackShort
@@ -28,9 +29,9 @@ logger.setLevel(logging.INFO)
 
 
 class DownloadFromType(Enum):
-    TRACK = ['трек', 'track']
+    TRACK = ['трека', 'track']
     PLAYLIST = ['плейлиста', 'playlists']
-    ALBUM = ['альбом', 'album']
+    ALBUM = ['альбома', 'album']
     LIKED_TRACKS = ['любимых треков', '']
 
 
@@ -84,6 +85,7 @@ class YandexMusicLoader:
                 playlist_uuid = striped_url[id_index]
                 return self.download_playlist_tracks(playlist_uuid, limit, position_from, position_to)
             else:
+                print('Ссылка недействительна')
                 return None
         elif specify_download_type == DownloadFromType.LIKED_TRACKS:
             return self.download_from_liked_tracks()
@@ -91,7 +93,6 @@ class YandexMusicLoader:
             return None
 
 
-#TODO: сделать загрузке по сыылке (с автоопеределением)
     def music_download_old(self, download_type: DownloadFromType, search_value: str = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
         if not search_value:
             print("Не указано значение для поиска трека/альбома/плейлиста/по названию")
@@ -158,12 +159,13 @@ class YandexMusicLoader:
 
 
     def download_tracks(self, tracks: List[TrackShort], downloaded_from: DownloadFromType, pack_name: str = "") -> None:
-        logger.info(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} - {pack_name}")
-        print(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} - {pack_name}")
+        pack_name = '- ' + pack_name if pack_name else ''
+        logger.info(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} {pack_name}")
+        print(f"Начало загрузки {len(tracks)} треков из {downloaded_from.value[0]} {pack_name}")
 
         for track in tqdm(
                 tracks,
-                desc=f"Загрузка {downloaded_from.value[0]} - {downloaded_from.value[0]}",
+                desc=f"Загрузка {downloaded_from.value[0]} {pack_name}",
                 unit="Трек",
                 unit_scale=True,
                 ncols=100,
@@ -272,30 +274,72 @@ class YandexMusicLoader:
         except Exception as e:
             print(f"Ошибка при добавлении метаданных: {e}")
 
-    #TODO: Удалять и директории
-    #TODO: При удалении определённого трека проверять наличие других файлов, если их нет то удалять и саму директорию
+
     def delete_downloaded_music(self, track_name_to_delete: str = "") -> None:
+        def clear_all_dir(path):
+            for item in path.iterdir():
+                try:
+                    if item.is_dir():
+                        clear_all_dir(item)
+                    elif item.is_file():
+                        item.unlink()
+                        delete_empty_dirs(item.parent)
+                    else:
+                        continue
+                except OSError as err:
+                    logger.error(f"Ошибка при удалении файла/директории {item}: {err}")
+                    print(f"Ошибка при удалении файла/директории {item}: {err}")
+                    return None
+
+
+        def find_and_delete_by_name(path: Path) -> bool:
+            for item in path.iterdir():
+                if item.is_dir():
+                    file_is_deleted = find_and_delete_by_name(item)
+                    if file_is_deleted:
+                        return True
+                elif item.is_file() and track_name_to_delete.lower() in item.name.lower():
+                    try:
+                        item.unlink()
+                        file_is_deleted = True
+                        delete_empty_dirs(item.parent)
+                        return file_is_deleted
+                    except OSError as err:
+                        logger.error(f"Ошибка при удалении файла {item}: {err}")
+                        print(f"Ошибка при удалении файла {item}: {err}")
+            return False
+
+
+        def delete_empty_dirs(path):
+            if path == self.music_download_path or not path.exists():
+                return
+            if path.is_dir() and not any(path.iterdir()):
+                try:
+                    path.rmdir()
+                    delete_empty_dirs(path.parent)
+                except OSError as err:
+                    logger.error(f"Ошибка при удалении директории {path}: {err}")
+                    print(f"Ошибка при удалении директории {path}: {err}")
+
+
+        if not self.music_download_path.exists() or not any(self.music_download_path.iterdir()):
+            print(f"Директория {self.music_download_path} пуста или не найдена!")
+            return None
+
         search_file_to_delete = True if track_name_to_delete else False
-        searched_file_is_deleted = False
-        for file in self.music_download_path.iterdir():
-            if search_file_to_delete:
-                if not track_name_to_delete in file.name:
-                    continue
-            try:
-                file.unlink()
-                if search_file_to_delete:
-                    searched_file_is_deleted = True
-                    break
-            except OSError  as e:
-                logger.error(f"Ошибка при удалении файла {file}: {e}")
-                print(f"Ошибка при удалении файла {file}: {e}")
+
+        if search_file_to_delete:
+            searched_file_is_deleted = find_and_delete_by_name(self.music_download_path)
+        else:
+            clear_all_dir(self.music_download_path)
 
         if search_file_to_delete and not searched_file_is_deleted:
-            logger.info(f"Файл для удаления с названием {track_name_to_delete} не найден")
-            print(f"Файл для удаления с названием {track_name_to_delete} не найден")
+            logger.info(f"Файл для удаления с названием '{track_name_to_delete}' не найден")
+            print(f"Файл для удаления с названием '{track_name_to_delete}' не найден")
         elif search_file_to_delete and searched_file_is_deleted:
-            logger.info(f"Файл с названием {track_name_to_delete} удалён")
-            print(f"Файл с названием {track_name_to_delete} удалён")
+            logger.info(f"Файл с названием '{track_name_to_delete}' удалён")
+            print(f"Файл с названием '{track_name_to_delete}' удалён")
         else:
             logger.info(f"Директория с установленной музыкой очищена ({self.music_download_path})")
             print(f"Директория с установленной музыкой очищена ({self.music_download_path})")
+        return None
