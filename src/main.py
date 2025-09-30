@@ -54,7 +54,21 @@ class MusicLoader:
                     track_id = input("Введите ссылку на трек/альбом/плейлист: ")
                     self.yandex_music_loader.music_download(track_id)
                 case 2:
-                    pass
+                    track_limits = input("Введите лимит треков из избранного или лимит с какого по какой трек загрузить (пример указания лимита -> '100'; пример указания лимита с какого по какой -> '0:100'): ")
+                    track_limits = track_limits.split(':')
+                    if len(track_limits) == 2:
+                        limit_from = track_limits[0]
+                        limit_to = track_limits[1]
+                        if limit_from.isdigit() and limit_to.isdigit():
+                            self.yandex_music_loader.download_from_liked_tracks(position_from=int(limit_from), position_to=int(limit_to))
+                        else:
+                            print("В позициях с..по.. указано не число!")
+                    elif len(track_limits) == 1:
+                        limit = track_limits[0]
+                        if limit.isdigit():
+                            self.yandex_music_loader.download_from_liked_tracks(limit=int(limit))
+                        else:
+                            print("В лммите указано не число")
                 case 3:
                     search_string = input("Введите название для поиска: ")
                     found_tracks = self.yandex_music_loader.search_tracks(search_string)
@@ -84,7 +98,7 @@ class MusicLoader:
         while True:
             self._clear_console()
             print(f"\n{'-' * 10}ОТЧИСТКА ДИРЕКТОРИИ ЗАГРУЗКИ{'-' * 10}")
-            print("1. Найти у далить трек по названию трека")
+            print("1. Найти и удалить файл по названию трека")
             print("2. Отчистить директорию полностью")
             print("0. Назад")
 

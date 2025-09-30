@@ -122,8 +122,8 @@ class YandexMusicLoader:
             return
 
         artists = ", ".join(artist.name for artist in track.artists)
-        main_artist = track.artists[0].name
-        album = track.albums[0].title if track.albums else "Неизвестный альбом"
+        main_artist = self._make_correct_file_name(track.artists[0].name)
+        album = self._make_correct_file_name(track.albums[0].title if track.albums else "Неизвестный альбом")
         filename = f"{track.title} - {artists}.mp3"
         filename = self._make_correct_file_name(filename)
 
