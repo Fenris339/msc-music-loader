@@ -1,0 +1,6 @@
+/config.ini
+/msc_music
+/downloaded_music
+!logs/*
+/.idea
+/.venv
