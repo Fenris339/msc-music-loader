@@ -217,14 +217,37 @@ class YandexMusicLoader:
                 tracks = tracks[:limit]
             self.download_tracks(tracks, DownloadFromType.ALBUM, album.title)
 
+
     def download_from_liked_tracks(self, limit: int= None, position_from: int = 0, position_to: int = None) -> None:
-
+        try:
+            liked_tracks = self.client.usersLikesTracks()
+            tracks = liked_tracks.tracks
+        except Exception as e:
+            print(e)
+            return
+        else:
+            if position_to:
+                tracks = tracks[position_from:position_to]
+            elif limit:
+                tracks = tracks[:limit]
+            self.download_tracks(tracks, DownloadFromType.PLAYLIST)
         pass
 
 
-    def search_and_download(self, search_string: str) -> None:
-        print("Не реализовано")
-        pass
+    def search_tracks(self, search_string: str) -> dict:
+        try:
+            if not search_string:
+                return {}
+            find_tracks = self.client.search(search_string)
+            tracks = find_tracks.tracks.results
+        except Exception as e:
+            print(e)
+            return {}
+        else:
+            search_results = dict()
+            for i, track in enumerate(tracks[:10]):
+                search_results[i+1] = {'id':track.id, 'title':track.title, 'artist':track.artists[0].name}
+            return search_results
 
 
     @staticmethod

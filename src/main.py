@@ -44,6 +44,7 @@ class MusicLoader:
             print(f"\n{'-' * 10}ЗАГРУЗКА ТРЕКОВ{'-' * 10}")
             print("1. Загрузить трек/альбом/плейлист")
             print("2. Загрузить треки из избранного")
+            print("3. Найти трек")
             print("0. Назад")
 
             choice = int(input("\nВыберите пункт: "))
@@ -54,6 +55,25 @@ class MusicLoader:
                     self.yandex_music_loader.music_download(track_id)
                 case 2:
                     pass
+                case 3:
+                    search_string = input("Введите название для поиска: ")
+                    found_tracks = self.yandex_music_loader.search_tracks(search_string)
+                    if found_tracks:
+                        for number, track in found_tracks.items():
+                            print(f"{number}. Название: '{track['title']}' Исполнитель: '{track['artist']}'")
+                        while True:
+                            track_choice = input("Введите номер трека который необходимо загрузить: ")
+                            if track_choice.isdigit():
+                                track_choice = int(track_choice)
+                                if int(track_choice) in found_tracks.keys():
+                                    self.yandex_music_loader.download_track(found_tracks[track_choice]['id'])
+                                    break
+                                else:
+                                    print("Неправильный выбор!")
+                            else:
+                                print("Введено не число")
+                    else:
+                        print(f"Трек '{search_string}' не найден!")
                 case 0:
                     self.main_menu()
                 case _:
