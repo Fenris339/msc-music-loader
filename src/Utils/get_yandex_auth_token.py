@@ -2,7 +2,7 @@ from selenium import webdriver
 import time
 
 
-def get_token_simple():
+def get_token():
     drivers = [
         lambda: webdriver.Chrome(),
         lambda: webdriver.Firefox(),

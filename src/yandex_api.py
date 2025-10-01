@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import wraps
 from typing import List
 from yandex_music import Client, TrackShort
 from yandex_music.exceptions import *
@@ -34,12 +35,37 @@ class DownloadFromType(Enum):
     LIKED_TRACKS = ['любимых треков', '']
 
 
+def check_client_initialized(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.is_client_init:
+            self.init_client()
+            if not self.is_client_init:
+                print("Yandex Music client is not initialized and cannot be auto-initialized")
+                return None
+        return func(self, *args, **kwargs)
+    return wrapper
+
+
 class YandexMusicLoader:
     def __init__(self, config_manager):
-        token = config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_TOKEN)
+        self.music_download_path = None
+        self.download_cover = None
+        self.music_quality = None
+        self.client = None
+        self.is_client_init = False
+        self.config_manager = config_manager
+        self.init_client()
+
+
+    def init_client(self) -> None:
+        self.is_client_init = False
+
+        token = self.config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_TOKEN)
         if not token:
             print("В конфигурации не указан токен авторизации для yandex music")
             return
+
         try:
             self.client = Client(token).init()
         except UnauthorizedError as e:
@@ -49,7 +75,8 @@ class YandexMusicLoader:
         except NetworkError as e:
             print(f"Произошла ошибка при авторизации клиента, yandex-music-api вернул NetworkError: {e}")
             return
-        music_download_path_string = config_manager.get_param(SettingsSection.PATHS, SettingsParam.PATHS_DOWNLOADED_MUSIC_PATH)
+
+        music_download_path_string = self.config_manager.get_param(SettingsSection.PATHS, SettingsParam.PATHS_DOWNLOADED_MUSIC_PATH)
         try:
             self.music_download_path = Path(music_download_path_string)
             if not self.music_download_path.exists():
@@ -57,13 +84,13 @@ class YandexMusicLoader:
         except Exception as e:
             print(f"При инициализации пути для загрузки музыки произошла ошибка: {e}")
             return
-        self.music_quality = config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_MUSIC_QUALITY)
-        self.download_cover = config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_DOWNLOAD_COVER)
 
-    # пример ссылок
-    # https://music.yandex.ru/album/488052/track/178529
-    # https://music.yandex.ru/album/488052
-    # https://music.yandex.ru/playlists/55dad88e-08d2-00ae-91c5-0a12db0aee5d
+        self.music_quality = self.config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_MUSIC_QUALITY)
+        self.download_cover = self.config_manager.get_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_DOWNLOAD_COVER)
+
+        self.is_client_init = True
+
+
     def music_download(self, search_value: str, specify_download_type: DownloadFromType = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
         if not search_value:
             print("Не указано значение для поиска трека/альбома/плейлиста/по названию")
@@ -92,25 +119,7 @@ class YandexMusicLoader:
             return None
 
 
-    def music_download_old(self, download_type: DownloadFromType, search_value: str = None, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
-        if not search_value:
-            print("Не указано значение для поиска трека/альбома/плейлиста/по названию")
-        match download_type:
-            case DownloadFromType.TRACK:
-                if not search_value.isdigit():
-                    return print("В id трека присутствуют запрещённые символы")
-                return self.download_track(int(search_value))
-            case DownloadFromType.PLAYLIST:
-                return self.download_playlist_tracks(search_value, limit, position_from, position_to)
-            case DownloadFromType.ALBUM:
-                if not search_value.isdigit():
-                    return print("В id альбома присутствуют запрещённые символы")
-                return self.download_album_tracks(int(search_value), limit, position_from, position_to)
-            case DownloadFromType.LIKED_TRACKS:
-                return self.download_album_tracks(limit, position_from, position_to)
-        return None
-
-
+    @check_client_initialized
     def download_track(self, track_id: int) -> None:
         try:
             track = self.client.tracks(track_id)[0]
@@ -177,6 +186,7 @@ class YandexMusicLoader:
         pass
 
 
+    @check_client_initialized
     def download_playlist_tracks(self, playlist_uuid: str, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
         try:
             user_playlists = self.client.usersPlaylistsList()
@@ -201,6 +211,7 @@ class YandexMusicLoader:
             self.download_tracks(tracks, DownloadFromType.PLAYLIST, playlist.title)
 
 
+    @check_client_initialized
     def download_album_tracks(self, album_id: int, limit: int = None, position_from: int = 0, position_to: int = None) -> None:
         try:
             album = self.client.albums_with_tracks(album_id)
@@ -218,6 +229,7 @@ class YandexMusicLoader:
             self.download_tracks(tracks, DownloadFromType.ALBUM, album.title)
 
 
+    @check_client_initialized
     def download_from_liked_tracks(self, limit: int= None, position_from: int = 0, position_to: int = None) -> None:
         try:
             liked_tracks = self.client.usersLikesTracks()
@@ -234,6 +246,7 @@ class YandexMusicLoader:
         pass
 
 
+    @check_client_initialized
     def search_tracks(self, search_string: str) -> dict:
         try:
             if not search_string:
@@ -297,6 +310,7 @@ class YandexMusicLoader:
             print(f"Ошибка при добавлении метаданных: {e}")
 
 
+    @check_client_initialized
     def delete_downloaded_music(self, track_name_to_delete: str = "") -> None:
         def clear_all_dir(path):
             for item in path.iterdir():

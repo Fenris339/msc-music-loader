@@ -2,6 +2,7 @@ from pathlib import Path
 from configparser import ConfigParser, NoSectionError, NoOptionError
 from typing import Any
 from enum import Enum
+from Utils.get_yandex_auth_token import get_token
 
 
 __all__ = ['SettingsSection', 'SettingsParam', 'ConfigManager']
@@ -71,7 +72,7 @@ class ConfigManager:
             return default
 
 
-    def set_param(self, section: SettingsSection, param: SettingsParam, value: Any) -> None:
+    def set_param(self, section: SettingsSection, param: SettingsParam, value: Any) -> bool:
         """
         Устанавливет значение параметра
         :param section: сеция конфига
@@ -82,11 +83,23 @@ class ConfigManager:
         if not self._config.has_section(section.value):
             self._config.add_section(section.value)
 
-        self._config[section.value][param.value] = value
+        if self._config[section.value][param.value] != value:
+            self._config[section.value][param.value] = value
 
-        with open(self._config_path, 'w', encoding='utf-8') as configfile:
-            self._config.write(configfile)
+            with open(self._config_path, 'w', encoding='utf-8') as configfile:
+                self._config.write(configfile)
 
-        #print(f"В конфигурацию записан {section}.{param} = {value}")
+            self.read_config()
+            return True
+
+        return False
 
 
+    def get_and_set_yandex_api_token(self) -> bool:
+        yandex_api_token = get_token()
+        if yandex_api_token:
+            is_token_set = self.set_param(SettingsSection.YANDEX_API, SettingsParam.YANDEX_API_TOKEN, yandex_api_token)
+            return is_token_set
+        else:
+            print("Токен не получен!")
+            return False
